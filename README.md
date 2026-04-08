@@ -1,3 +1,3 @@
 My Projects
 
-1. Encryptuh (An encrypt/decrypt html application, Edge support only)
+1. Encrypta (An encrypt/decrypt html application, Edge support only)
