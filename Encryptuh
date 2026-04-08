@@ -1,1 +1,491 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Encryptor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f4f4f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #18181b;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e4e4e7;
+    padding: 2rem;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  }
+
+  .logo {
+    width: 48px;
+    height: 48px;
+    background: #18181b;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .logo svg { width: 26px; height: 26px; }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #18181b;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #71717a;
+    margin-bottom: 1.75rem;
+  }
+
+  .drop-zone {
+    border: 2px dashed #d4d4d8;
+    border-radius: 12px;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 1.25rem;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #18181b;
+    background: #fafafa;
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    width: 40px;
+    height: 40px;
+    background: #f4f4f5;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.75rem;
+  }
+
+  .drop-zone p {
+    font-size: 14px;
+    color: #71717a;
+  }
+
+  .drop-zone p strong {
+    color: #18181b;
+    font-weight: 500;
+  }
+
+  .drop-zone .file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #18181b;
+    margin-top: 0.5rem;
+    word-break: break-all;
+  }
+
+  .file-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f4f4f5;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-top: 0.5rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: #18181b;
+  }
+
+  .enc-badge {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  label.pw-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #3f3f46;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  .pw-wrap {
+    position: relative;
+    margin-bottom: 1.25rem;
+  }
+
+  input[type="password"], input[type="text"] {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border: 1px solid #d4d4d8;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #18181b;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+
+  input[type="password"]:focus, input[type="text"]:focus {
+    border-color: #18181b;
+  }
+
+  .pw-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #a1a1aa;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+  }
+
+  .pw-toggle:hover { color: #18181b; }
+
+  .mode-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 1.25rem;
+  }
+
+  .mode-btn {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1.5px solid #d4d4d8;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #71717a;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .mode-btn.active {
+    border-color: #18181b;
+    background: #18181b;
+    color: #fff;
+  }
+
+  .btn-main {
+    width: 100%;
+    padding: 11px;
+    border-radius: 10px;
+    border: none;
+    background: #18181b;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-main:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-main:hover:not(:disabled) { background: #3f3f46; }
+
+  .status {
+    margin-top: 1rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+  }
+
+  .status.success {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+    display: block;
+  }
+
+  .status.error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    display: block;
+  }
+
+  .status.info {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    display: block;
+  }
+
+  .hint {
+    margin-top: 1rem;
+    font-size: 12px;
+    color: #a1a1aa;
+    text-align: center;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  </div>
+  <h1>File Encryptor</h1>
+  <p class="subtitle">AES-256 encryption — runs entirely in your browser</p>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput">
+    <div class="drop-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <p><strong>Click to browse</strong> or drag a file here</p>
+    <div id="fileLabel"></div>
+  </div>
+
+  <div class="mode-row">
+    <button class="mode-btn active" id="btnEncrypt" onclick="setMode('encrypt')">
+      Encrypt
+    </button>
+    <button class="mode-btn" id="btnDecrypt" onclick="setMode('decrypt')">
+      Decrypt
+    </button>
+  </div>
+
+  <label class="pw-label" for="pwInput">Password</label>
+  <div class="pw-wrap">
+    <input type="password" id="pwInput" placeholder="Enter a strong password…">
+    <button class="pw-toggle" onclick="togglePw()" title="Show/hide password">
+      <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </button>
+  </div>
+
+  <button class="btn-main" id="goBtn" onclick="run()" disabled>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    <span id="goBtnText">Encrypt file</span>
+  </button>
+
+  <div class="status" id="status"></div>
+
+  <p class="hint">Your file never leaves your device.<br>Encrypted files are saved as <strong>.enc</strong> — decrypt them the same way.</p>
+</div>
+
+<script>
+  let selectedFile = null;
+  let mode = 'encrypt';
+
+  const fileInput = document.getElementById('fileInput');
+  const fileLabel = document.getElementById('fileLabel');
+  const goBtn = document.getElementById('goBtn');
+  const goBtnText = document.getElementById('goBtnText');
+  const pwInput = document.getElementById('pwInput');
+  const statusEl = document.getElementById('status');
+  const dropZone = document.getElementById('dropZone');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+
+  function setFile(f) {
+    selectedFile = f;
+    const isEnc = f.name.endsWith('.enc');
+    const badge = isEnc
+      ? `<span class="file-badge enc-badge">🔒 ${f.name}</span>`
+      : `<span class="file-badge">${f.name}</span>`;
+    fileLabel.innerHTML = badge;
+
+    if (isEnc && mode === 'encrypt') setMode('decrypt');
+    if (!isEnc && mode === 'decrypt') setMode('encrypt');
+
+    updateBtn();
+    clearStatus();
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btnEncrypt').classList.toggle('active', m === 'encrypt');
+    document.getElementById('btnDecrypt').classList.toggle('active', m === 'decrypt');
+    updateBtn();
+    clearStatus();
+  }
+
+  function updateBtn() {
+    const ready = selectedFile && pwInput.value.length > 0;
+    goBtn.disabled = !ready;
+    goBtnText.textContent = mode === 'encrypt' ? 'Encrypt file' : 'Decrypt file';
+  }
+
+  pwInput.addEventListener('input', updateBtn);
+
+  function togglePw() {
+    const show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    document.getElementById('eyeIcon').innerHTML = show
+      ? `<line x1="1" y1="1" x2="23" y2="23"/><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  }
+
+  function showStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status ' + type;
+  }
+
+  function clearStatus() {
+    statusEl.className = 'status';
+  }
+
+  async function deriveKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  async function run() {
+    if (!selectedFile || !pwInput.value) return;
+
+    goBtn.disabled = true;
+    goBtnText.textContent = mode === 'encrypt' ? 'Encrypting…' : 'Decrypting…';
+    clearStatus();
+
+    try {
+      const fileData = await selectedFile.arrayBuffer();
+
+      if (mode === 'encrypt') {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await deriveKey(pwInput.value, salt);
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, fileData);
+
+        const result = new Uint8Array(16 + 12 + encrypted.byteLength);
+        result.set(salt, 0);
+        result.set(iv, 16);
+        result.set(new Uint8Array(encrypted), 28);
+
+        download(result, selectedFile.name + '.enc');
+        showStatus('File encrypted and saved as "' + selectedFile.name + '.enc"', 'success');
+
+      } else {
+        const data = new Uint8Array(fileData);
+        if (data.length < 29) throw new Error('Invalid or corrupt .enc file.');
+
+        const salt = data.slice(0, 16);
+        const iv = data.slice(16, 28);
+        const ciphertext = data.slice(28);
+        const key = await deriveKey(pwInput.value, salt);
+
+        let decrypted;
+        try {
+          decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+        } catch {
+          throw new Error('Decryption failed — wrong password or corrupted file.');
+        }
+
+        const outName = selectedFile.name.endsWith('.enc')
+          ? selectedFile.name.slice(0, -4)
+          : 'decrypted_' + selectedFile.name;
+
+        download(new Uint8Array(decrypted), outName);
+        showStatus('File decrypted and saved as "' + outName + '"', 'success');
+      }
+
+    } catch (err) {
+      showStatus(err.message, 'error');
+    }
+
+    updateBtn();
+  }
+
+  async function download(data, filename) {
+    const blob = new Blob([data]);
+
+    if (window.showSaveFilePicker) {
+      try {
+        const ext = filename.includes('.') ? filename.split('.').pop() : '';
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: ext ? [{ description: 'File', accept: { 'application/octet-stream': ['.' + ext] } }] : undefined
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
