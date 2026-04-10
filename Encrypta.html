@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -101,14 +100,6 @@
     font-weight: 500;
   }
 
-  .drop-zone .file-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: #18181b;
-    margin-top: 0.5rem;
-    word-break: break-all;
-  }
-
   .file-badge {
     display: inline-flex;
     align-items: center;
@@ -120,11 +111,61 @@
     font-size: 13px;
     font-weight: 500;
     color: #18181b;
+    max-width: 100%;
+  }
+
+  .file-badge .file-name-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+  }
+
+  .file-badge .file-size {
+    font-weight: 400;
+    color: #71717a;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .enc-badge {
     background: #fef3c7;
     color: #92400e;
+  }
+
+  .mode-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 1.25rem;
+  }
+
+  .mode-btn {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1.5px solid #d4d4d8;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #71717a;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .mode-btn.active {
+    border-color: #18181b;
+    background: #18181b;
+    color: #fff;
+  }
+
+  .mode-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .mode-btn.active:disabled {
+    opacity: 0.6;
   }
 
   label.pw-label {
@@ -173,32 +214,6 @@
 
   .pw-toggle:hover { color: #18181b; }
 
-  .mode-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 1.25rem;
-  }
-
-  .mode-btn {
-    padding: 10px;
-    border-radius: 10px;
-    border: 1.5px solid #d4d4d8;
-    background: #fff;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    color: #71717a;
-    transition: all 0.15s;
-    font-family: inherit;
-  }
-
-  .mode-btn.active {
-    border-color: #18181b;
-    background: #18181b;
-    color: #fff;
-  }
-
   .btn-main {
     width: 100%;
     padding: 11px;
@@ -231,6 +246,7 @@
     font-size: 13px;
     font-weight: 500;
     display: none;
+    line-height: 1.5;
   }
 
   .status.success {
@@ -254,12 +270,59 @@
     display: block;
   }
 
+  .status.warning {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+    display: block;
+  }
+
+  /* Delete reminder banner */
+  .delete-reminder {
+    display: none;
+    margin-top: 0.75rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    font-size: 12.5px;
+    color: #9a3412;
+    line-height: 1.5;
+  }
+
+  .delete-reminder.visible {
+    display: block;
+  }
+
+  .delete-reminder strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
   .hint {
     margin-top: 1rem;
     font-size: 12px;
     color: #a1a1aa;
     text-align: center;
     line-height: 1.5;
+  }
+
+  /* Locked mode indicator */
+  .mode-lock-note {
+    display: none;
+    font-size: 11.5px;
+    color: #92400e;
+    background: #fef3c7;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin-top: -0.75rem;
+    margin-bottom: 1.25rem;
+    text-align: center;
+  }
+
+  .mode-lock-note.visible {
+    display: block;
   }
 </style>
 </head>
@@ -297,6 +360,10 @@
     </button>
   </div>
 
+  <div class="mode-lock-note" id="modeLockNote">
+    🔒 Already encrypted — only decryption is available for .enc files
+  </div>
+
   <label class="pw-label" for="pwInput">Password</label>
   <div class="pw-wrap">
     <input type="password" id="pwInput" placeholder="Enter a strong password…">
@@ -318,12 +385,18 @@
 
   <div class="status" id="status"></div>
 
+  <div class="delete-reminder" id="deleteReminder">
+    <strong>⚠️ Don't forget to delete the original</strong>
+    The encrypted copy has been saved. For security, manually delete the original unencrypted file from your device.
+  </div>
+
   <p class="hint">Your file never leaves your device.<br>Encrypted files are saved as <strong>.enc</strong> — decrypt them the same way.</p>
 </div>
 
 <script>
   let selectedFile = null;
   let mode = 'encrypt';
+  let isEncFile = false;
 
   const fileInput = document.getElementById('fileInput');
   const fileLabel = document.getElementById('fileLabel');
@@ -332,6 +405,8 @@
   const pwInput = document.getElementById('pwInput');
   const statusEl = document.getElementById('status');
   const dropZone = document.getElementById('dropZone');
+  const modeLockNote = document.getElementById('modeLockNote');
+  const deleteReminder = document.getElementById('deleteReminder');
 
   fileInput.addEventListener('change', () => {
     if (fileInput.files[0]) setFile(fileInput.files[0]);
@@ -345,22 +420,54 @@
     if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
   });
 
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
   function setFile(f) {
     selectedFile = f;
-    const isEnc = f.name.endsWith('.enc');
-    const badge = isEnc
-      ? `<span class="file-badge enc-badge">🔒 ${f.name}</span>`
-      : `<span class="file-badge">${f.name}</span>`;
-    fileLabel.innerHTML = badge;
+    isEncFile = f.name.endsWith('.enc');
+    const sizeLabel = formatSize(f.size);
 
-    if (isEnc && mode === 'encrypt') setMode('decrypt');
-    if (!isEnc && mode === 'decrypt') setMode('encrypt');
+    if (isEncFile) {
+      fileLabel.innerHTML = `<span class="file-badge enc-badge">
+        🔒 <span class="file-name-text" title="${f.name}">${f.name}</span>
+        <span class="file-size">${sizeLabel}</span>
+      </span>`;
+      // Lock to decrypt only
+      setMode('decrypt');
+      lockEncryptBtn(true);
+    } else {
+      fileLabel.innerHTML = `<span class="file-badge">
+        <span class="file-name-text" title="${f.name}">${f.name}</span>
+        <span class="file-size">${sizeLabel}</span>
+      </span>`;
+      lockEncryptBtn(false);
+      // Only auto-switch to encrypt if currently on decrypt with a non-enc file
+      if (mode === 'decrypt') setMode('encrypt');
+    }
 
     updateBtn();
     clearStatus();
   }
 
+  function lockEncryptBtn(locked) {
+    const btnEncrypt = document.getElementById('btnEncrypt');
+    if (locked) {
+      btnEncrypt.disabled = true;
+      modeLockNote.classList.add('visible');
+    } else {
+      btnEncrypt.disabled = false;
+      modeLockNote.classList.remove('visible');
+    }
+  }
+
   function setMode(m) {
+    // Don't allow encrypt mode if an .enc file is loaded
+    if (m === 'encrypt' && isEncFile) return;
+
     mode = m;
     document.getElementById('btnEncrypt').classList.toggle('active', m === 'encrypt');
     document.getElementById('btnDecrypt').classList.toggle('active', m === 'decrypt');
@@ -391,6 +498,7 @@
 
   function clearStatus() {
     statusEl.className = 'status';
+    deleteReminder.classList.remove('visible');
   }
 
   async function deriveKey(password, salt) {
@@ -407,6 +515,12 @@
 
   async function run() {
     if (!selectedFile || !pwInput.value) return;
+
+    // Extra guard: never encrypt an .enc file
+    if (mode === 'encrypt' && isEncFile) {
+      showStatus('This file is already encrypted. Switch to Decrypt mode to unlock it.', 'error');
+      return;
+    }
 
     goBtn.disabled = true;
     goBtnText.textContent = mode === 'encrypt' ? 'Encrypting…' : 'Decrypting…';
@@ -426,8 +540,12 @@
         result.set(iv, 16);
         result.set(new Uint8Array(encrypted), 28);
 
-        download(result, selectedFile.name + '.enc');
-        showStatus('File encrypted and saved as "' + selectedFile.name + '.enc"', 'success');
+        const outName = selectedFile.name + '.enc';
+        await download(result, outName);
+        showStatus(`✓ Encrypted and saved as "${outName}"`, 'success');
+
+        // Prompt user to delete the original
+        deleteReminder.classList.add('visible');
 
       } else {
         const data = new Uint8Array(fileData);
@@ -449,8 +567,8 @@
           ? selectedFile.name.slice(0, -4)
           : 'decrypted_' + selectedFile.name;
 
-        download(new Uint8Array(decrypted), outName);
-        showStatus('File decrypted and saved as "' + outName + '"', 'success');
+        await download(new Uint8Array(decrypted), outName);
+        showStatus(`✓ Decrypted and saved as "${outName}"`, 'success');
       }
 
     } catch (err) {
@@ -476,9 +594,11 @@
         return;
       } catch (e) {
         if (e.name === 'AbortError') return;
+        // Fall through to legacy download
       }
     }
 
+    // Fallback for browsers without File System Access API
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
